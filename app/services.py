@@ -1,22 +1,14 @@
-import httpx
 import os
+import httpx
+from dotenv import load_dotenv
 
+load_dotenv()
 
-from google import genai
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-client = genai.Client(api_key="AIzaSyCI90BtC5yv9lCCRkhhqZkM4yXihoNG8cM")
+if GEMINI_API_KEY is None:
+    raise ValueError("GEMINI_API_KEY is not set in environment variables")
 
-response = client.models.generate_content(
-    model="gemini-2.0-flash",
-    contents="Explain how AI works",
-)
-
-print(response.text)
-
-
-GEMINI_API_KEY = "AIzaSyCI90BtC5yv91CCRkhhqZkM4yXihoNG8cM"
-
-# Correct Gemini API URL
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 
 async def get_project_tasks(project_name: str, location: str):
@@ -42,38 +34,32 @@ async def get_project_tasks(project_name: str, location: str):
                 headers=headers,
                 json=payload
             )
-            
-            response_data = response.json()
-            
-            # Process the Gemini response to extract tasks
-            if response.status_code == 200 and "candidates" in response_data:
-                text_response = response_data["candidates"][0]["content"]["parts"][0]["text"]
+
+            if response.status_code == 200:
+                response_data = response.json()
                 
-                # Extract tasks from the text response (simplified)
-                task_lines = [line.strip() for line in text_response.split('\n') 
-                             if line.strip() and not line.strip().startswith('#')]
-                
-                # Convert to required format
-                tasks = [{"name": task, "status": "pending"} for task in task_lines]
-                return tasks
+                if "candidates" in response_data:
+                    text_response = response_data["candidates"][0]["content"]["parts"][0]["text"]
+                    
+                    task_lines = [line.strip() for line in text_response.split('\n') 
+                                 if line.strip() and not line.strip().startswith('#')]
+                    
+                    tasks = [{"name": task, "status": "pending"} for task in task_lines]
+                    return tasks
+                else:
+                    raise ValueError("No candidates found in Gemini API response")
             else:
-                print(f"API Error: {response.text}")
-                # Return a default list of tasks if the API fails
-                return [
-                    {"name": "Find suitable location", "status": "pending"},
-                    {"name": "Obtain permits", "status": "pending"},
-                    {"name": "Hire contractors", "status": "pending"},
-                    {"name": "Purchase materials", "status": "pending"},
-                    {"name": "Begin construction", "status": "pending"}
-                ]
-                
+                raise ValueError(f"API Error: {response.status_code} - {response.text}")
+
         except Exception as e:
             print(f"Exception in Gemini API call: {str(e)}")
-            # Return a default list of tasks if there's an exception
-            return [
-                {"name": "Find suitable location", "status": "pending"},
-                {"name": "Obtain permits", "status": "pending"},
-                {"name": "Hire contractors", "status": "pending"},
-                {"name": "Purchase materials", "status": "pending"},
-                {"name": "Begin construction", "status": "pending"}
-            ]
+            return get_default_tasks()
+
+def get_default_tasks():
+    return [
+        {"name": "Find suitable location", "status": "pending"},
+        {"name": "Obtain permits", "status": "pending"},
+        {"name": "Hire contractors", "status": "pending"},
+        {"name": "Purchase materials", "status": "pending"},
+        {"name": "Begin construction", "status": "pending"}
+    ]

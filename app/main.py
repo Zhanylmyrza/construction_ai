@@ -94,10 +94,7 @@ def get_project_response(db_project: Project, db: Session) -> ProjectResponse:
         status=db_project.status,
         tasks=task_responses
     )
-    
-@app.get("/hi/")
-def get_hello():
-    print("hello")
+ 
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
